@@ -1,3 +1,4 @@
+package launch;
 import com.google.gson.Gson;
 
 import java.sql.*;
@@ -13,9 +14,14 @@ public class Library {
     private boolean checkParams(String isbn,String autore, String titolo){
         return (isbn == null || isbn.trim().length() == 0) || (titolo == null || titolo.trim().length() == 0) || (autore == null || autore.trim().length() == 0);
     }
-    private boolean checkParams2(String isbn,String utente, String data_inizio,String data_fine){// isbn,utente,data_inizio,data_fine
+    private boolean checkParams2(String isbn,String utente, String data_inizio,String data_fine){
         return (isbn == null || isbn.trim().length() == 0) || (utente == null || utente.trim().length() == 0) || (data_inizio == null || data_inizio.trim().length() == 0) || (data_fine == null || data_fine.trim().length() == 0);
     }
+    private boolean checkParams3(String ID,String isbn){
+        return (ID == null || ID.trim().length() == 0) || (isbn == null || isbn.trim().length() == 0);
+    }
+
+    //private static LibraryList libri=new LibraryList();
 
     @GET
     @Path("/all")
@@ -46,6 +52,15 @@ public class Library {
         String obj = new Gson().toJson(books);
         return Response.status(200).entity(obj).build();
     }
+
+    /*@GET
+    @Path("/all")
+    @Produces({MediaType.APPLICATION_XML,MediaType.APPLICATION_JSON})//
+    public ArrayList<Book> getList() {    
+       return libri.getList();
+    }
+*/
+    
 
     @PUT
     @Path("/update")
@@ -157,12 +172,7 @@ public class Library {
                 Connection conn = DriverManager.getConnection(data[0]);
                 PreparedStatement pstmt = conn.prepareStatement( QUERY );
                 PreparedStatement pstmt1 = conn.prepareStatement( quantita );
-        ) {
-            pstmt.setString(1,isbn);
-            pstmt.setString(2,utente);
-            pstmt.setString(3,data_inizio);
-            pstmt.setString(4,data_fine);
-            pstmt.execute();
+        ) { 
 
             ResultSet r = pstmt1.executeQuery();
             while(r.next()){
@@ -170,10 +180,46 @@ public class Library {
             }
 
             if(quantità > 0 ){
-                final String QUERYModificaQuantita = "UPDATE Libri SET quantita = quantita - '"+quantita+"'";
+                pstmt.execute();
+                final String QUERYModificaQuantita = "UPDATE Libri SET quantita = quantita - 1";
                 PreparedStatement pstmt2 = conn.prepareStatement( QUERYModificaQuantita );
                 
             }
+        }catch (SQLException e){
+            e.printStackTrace();
+            String obj = new Gson().toJson(error); 
+            return Response.serverError().entity(obj).build();
+        }
+        String obj = new Gson().toJson("Libro con ISBN:" + isbn + " aggiunto con successo");
+        return Response.ok(obj,MediaType.APPLICATION_JSON).build();
+    }
+
+    @POST
+    @Path("/restituisci")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response update3(@FormParam("ID") String id,
+                            @FormParam("ISBN") String isbn){
+        if(checkParams3(id,isbn)) {
+            String obj = new Gson().toJson("Parameters must be valid");
+            return Response.serverError().entity(obj).build();
+        }
+        final String QUERY = "UPDATE Prestiti SET restituito  = 'Si'";
+        final String quantita = "SELECT quantita FROM Libri WHERE ISBN = '"+isbn+"'";
+        final String[] data = Database.getData();
+        try(
+
+                Connection conn = DriverManager.getConnection(data[0]);
+                PreparedStatement pstmt = conn.prepareStatement( QUERY );
+                PreparedStatement pstmt1 = conn.prepareStatement( quantita );
+        ) {
+            pstmt.setString(1,isbn);
+            pstmt.execute();
+          
+            final String QUERYModificaQuantita = "UPDATE Libri SET quantita = quantita + 1";
+            PreparedStatement pstmt2 = conn.prepareStatement( QUERYModificaQuantita );
+                
+            
         }catch (SQLException e){
             e.printStackTrace();
             String obj = new Gson().toJson(error);

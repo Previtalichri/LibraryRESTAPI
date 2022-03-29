@@ -13,6 +13,9 @@ public class Library {
     private boolean checkParams(String isbn,String autore, String titolo){
         return (isbn == null || isbn.trim().length() == 0) || (titolo == null || titolo.trim().length() == 0) || (autore == null || autore.trim().length() == 0);
     }
+    private boolean checkParams2(String isbn,String utente, String data_inizio,String data_fine){// isbn,utente,data_inizio,data_fine
+        return (isbn == null || isbn.trim().length() == 0) || (utente == null || utente.trim().length() == 0) || (data_inizio == null || data_inizio.trim().length() == 0) || (data_fine == null || data_fine.trim().length() == 0);
+    }
 
     @GET
     @Path("/all")
@@ -132,4 +135,55 @@ public class Library {
         String obj = new Gson().toJson("Libro con ISBN:" + isbn + " eliminato con successo");
         return Response.ok(obj,MediaType.APPLICATION_JSON).build();
     }
+
+    @POST
+    @Path("/prestito")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response update2(@FormParam("ISBN") String isbn,
+                           @FormParam("ID_Utente")String utente,
+                           @FormParam("data_inizio") String data_inizio,
+                           @FormParam("data_fine") String data_fine){
+        if(checkParams2(isbn,utente,data_inizio,data_fine)) {
+            String obj = new Gson().toJson("Parameters must be valid");
+            return Response.serverError().entity(obj).build();
+        }
+        int quantità = 0;
+        final String QUERY = "INSERT INTO Prestiti(ID_Utente, ISBN, data_Inizio, data_Fine) VALUE(?,?,?,?)";
+        final String quantita = "SELECT quantita FROM Libri WHERE ISBN = '"+isbn+"'";
+        final String[] data = Database.getData();
+        try(
+
+                Connection conn = DriverManager.getConnection(data[0]);
+                PreparedStatement pstmt = conn.prepareStatement( QUERY );
+                PreparedStatement pstmt1 = conn.prepareStatement( quantita );
+        ) {
+            pstmt.setString(1,isbn);
+            pstmt.setString(2,utente);
+            pstmt.setString(3,data_inizio);
+            pstmt.setString(4,data_fine);
+            pstmt.execute();
+
+            ResultSet r = pstmt1.executeQuery();
+            while(r.next()){
+                quantità = Integer.parseInt(r.getString("quantità"));
+            }
+
+            if(quantità > 0 ){
+                final String QUERYModificaQuantita = "UPDATE Libri SET quantita = quantita - '"+quantita+"'";
+                PreparedStatement pstmt2 = conn.prepareStatement( QUERYModificaQuantita );
+                
+            }
+        }catch (SQLException e){
+            e.printStackTrace();
+            String obj = new Gson().toJson(error);
+            return Response.serverError().entity(obj).build();
+        }
+        String obj = new Gson().toJson("Libro con ISBN:" + isbn + " aggiunto con successo");
+        return Response.ok(obj,MediaType.APPLICATION_JSON).build();
+    }
+
+
 }
+
+

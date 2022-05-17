@@ -20,6 +20,9 @@ public class Library {
     private boolean checkParams3(String ID,String isbn){
         return (ID == null || ID.trim().length() == 0) || (isbn == null || isbn.trim().length() == 0);
     }
+    private boolean checkParams4(String Autore,String prezzo){
+        return (Autore == null || Autore.trim().length() == 0) || (prezzo == null || prezzo.trim().length() == 0);
+    }
 
     //private static LibraryList libri=new LibraryList();
 
@@ -193,43 +196,47 @@ public class Library {
         String obj = new Gson().toJson("Libro con ISBN:" + isbn + " aggiunto con successo");
         return Response.ok(obj,MediaType.APPLICATION_JSON).build();
     }
+//--------------------------------------------------------------------------------------------------------
 
     @POST
-    @Path("/restituisci")
+    @Path("/all_filtrato")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
-    public Response update3(@FormParam("ID") String id,
-                            @FormParam("ISBN") String isbn){
-        if(checkParams3(id,isbn)) {
+    public Response read(@FormParam("Autore") String autore,
+                         @FormParam("prezzo")String prezzo){
+        if(checkParams4(autore,prezzo)) {
             String obj = new Gson().toJson("Parameters must be valid");
             return Response.serverError().entity(obj).build();
         }
-        final String QUERY = "UPDATE Prestiti SET restituito  = 'Si'";
-        final String quantita = "SELECT quantita FROM Libri WHERE ISBN = '"+isbn+"'";
+        final String QUERY = "SELECT ISBN,Autore,Titolo,prezzo FROM Libri WHERE Autore = ? AND prezzo < ? ";
+        final List<Book> books = new ArrayList<>();
         final String[] data = Database.getData();
         try(
 
                 Connection conn = DriverManager.getConnection(data[0]);
-                PreparedStatement pstmt = conn.prepareStatement( QUERY );
-                PreparedStatement pstmt1 = conn.prepareStatement( quantita );
+                PreparedStatement pstmt = conn.prepareStatement( QUERY )
         ) {
-            pstmt.setString(1,isbn);
-            pstmt.execute();
-          
-            final String QUERYModificaQuantita = "UPDATE Libri SET quantita = quantita + 1";
-            PreparedStatement pstmt2 = conn.prepareStatement( QUERYModificaQuantita );
-                
-            
+            ResultSet results =  pstmt.executeQuery();
+            while (results.next()){
+                Book book = new Book();
+                book.setISBN(results.getString("ISBN"));
+                book.setTitolo(results.getString("Titolo"));
+                book.setAutore(results.getString("Autore"));
+                book.setISBN(results.getString("prezzo"));
+                books.add(book);
+
+            }
         }catch (SQLException e){
             e.printStackTrace();
             String obj = new Gson().toJson(error);
             return Response.serverError().entity(obj).build();
         }
-        String obj = new Gson().toJson("Libro con ISBN:" + isbn + " aggiunto con successo");
-        return Response.ok(obj,MediaType.APPLICATION_JSON).build();
+        String obj = new Gson().toJson(books);
+        return Response.status(200).entity(obj).build();
     }
 
 
 }
+
 
 
